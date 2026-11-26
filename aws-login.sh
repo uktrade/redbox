@@ -41,7 +41,7 @@ if [ ! -f "$AWS_DIR/credentials" ]; then
 fi
 
 # 2. Login with AWS SSO
-aws sso login --profile "$AWS_PROFILE"
+aws sso login --profile "$AWS_PROFILE" --use-device-code
 
 # 3. Update credentials in main .aws/credentials
 aws configure export-credentials --profile "$AWS_PROFILE" --format env-no-export | while IFS= read -r line; do

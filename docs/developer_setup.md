@@ -29,7 +29,11 @@ The developer setup guide for developing Redbox on your own machine.
 - [13. Accessing the Admin UI - Superuser status](#13-accessing-the-admin-ui---superuser-status)
 - [14. Setting up the chat llm backend](#14-setting-up-the-chat-llm-backend)
 - [🏁 Checkpoint 2: LLM functionality](#-checkpoint-2-llm-functionality)
-- [Next steps](#next-steps)
+- [15. Setting up agents, tools (aka skills) and knowledge bases](#15-setting-up-agents-tools-aka-skills-and-knowledge-bases)
+  - [Setting up Agents](#setting-up-agents)
+  - [Setting up Tools](#setting-up-tools)
+  - [Setting up a Knowledge Base](#setting-up-a-knowledge-base)
+- [🏁 Checkpoint 3: Tools can be created and used](#-checkpoint-3-tools-can-be-created-and-used)
 
 
 <hr>
@@ -382,12 +386,10 @@ You can also set the model manually, for example if you need to test an alternat
 
 1. Go to http://localhost:8080/admin/redbox_core/chatllmbackend/.  
   Create a new chat llm backend with the following:
-    ```
-    Name: <the model ID>  
-    Provider: Bedrock  
-    Is default: True  
-    Enabled: True  
-    ```
+    - `Name`: The model ID  
+    - `Provider`: Varies by LLM. `Bedrock` for Claude Sonnet <= 4.6; `Bedrock Converse` for Claude Sonnet >=5.5.
+    - `Is default`: `True`  
+    - `Enabled`: `True`  
 
 1. Go to http://localhost:8080/admin/redbox_core/aisettings/.  
     Check that the default settings uses the chat backend you just created.  
@@ -407,6 +409,90 @@ You should now be able to perform the following actions:
 
 ---
 
-## Next steps
+## 15. Setting up agents, tools (aka skills) and knowledge bases
+
+The deployed development version of Assist has various capabilities that should be reproduced in your local environment using the UI. This section explains how to do that.
+
+### Setting up Agents
+
+In Assist, an **Agent** is a reusable unit that can perform a specific task, usually (but not necessarily) supported by a LLM.  
+An example is the Web Search Agent, which:
+- Receives a prompt
+- Interprets the prompt to create a search query
+- Passes that search query to a search engine
+- Interprets search results to generate and return a response
+
+Agents are defined in code. However the LLM used by each agent is not. This needs to be configured using the Admin UI.  
+You can check which LLM backend to use for each agent by checking the configuration in [the dev deployment](https://dev.assist.uktrade.digital/admin/redbox_core/agent/).
+
+For each agent:
+
+1. In the Admin UI go to `/redbox_core/agent`
+2. Click on `ADD AGENT +`
+3. Configure the agent:
+   - Select the agent that you want to add
+   - Set `LLM backend` to a suitable model
+   - Remaining fields can be left blank; they are informational only and do not impact agent behaviour
+   - Hit `SAVE`
+
+
+
+### Setting up Tools
+
+A **Tool** (aka Skill) is a capability that users can select in the Assist UI, to perform a specific sort of task.  
+Each tool is configured to use the specific agents that it needs in order to carry out its specific purpose. Limiting the agents available to a tool helps to ensure that it follows an appropriate workflow.  
+The tool receives the user's prompt, then decides which of its agents to use to resolve that prompt. It combines the outputs of the invoked agents to create a response to the user's query.
+
+Tools are created and configured using the Admin UI.  
+Created tools are shown in [the Assist chat page](https://dev.assist.uktrade.digital/chats/), in the dropdown above the chat field.
+
+To create a tool:
+
+1. In the Admin UI go to `/redbox_core/tool`
+2. Click on `ADD TOOL +`
+3. Configure the tool:
+   - `Name`: The tool's name shown in the UI
+   - `Description`: Description for developers
+   - `Slug`: Set a URL path for the tool (`lower-kebab-case`)
+   - `Is public`: If checked, all users can access the tool
+   - `Icon slug`: Path to an icon used to represent the tool
+   - Hit `SAVE`
+4. Assign agents to the tool.  
+   Go to `redbox_core/agenttool/` then for each agent you want to add to the tool:
+   - Click `Add agent tool`
+   - Select the agent and the tool, then `SAVE`
+5. Go to the chat UI. The tool should be selectable from the dropdown. You should be able to run it, and it should use only the agents you selected.
+
+
+### Setting up a Knowledge Base
+
+A **Knowledge Base** is a pool of chunked & vectorised files that are assigned to a specific tool, to help it perform its specific task.
+
+Some tools have knowledge base files that tell the tool how it should do its task, for example a set of instructions or a template for its responses.  
+Others have knowledge base files that provide specific knowledge. For example a tool could contain tables of domain-specific information that it can access to answer user queries.
+
+Various tools in production Assist rely on knowledge bases. You can view and download these files via the chat UI by selecting a tool then clicking on the link `Resources that <tool name> uses`.
+
+To assign a file to a tool's knowledge base:
+1. Upload the file using the chat UI. Drag the file into the chat box or click on the 📎 paperclip icon.
+2. Once the UI indicates that ingestion has `Completed`, go to the Admin UI > `/redbox_core/filetool`
+3. Select the uploaded file. Configure it:
+  - `Tool`: The tool whose knowledge base you want to add the file to
+  - `File type`: `Admin`
+  - `SAVE`
+4. Go to the chat UI, select the tool, and ask a question about the document (or a tangentially related question that doesn't make reference to the document). The tool should be able to retrieve information from the document.
 
 You now have Assist running. Next you may want to set up some tools, and create knowledge bases for those tools. You can do that now, or you can set up tools as and when you need them. Instructions for this are in confluence..
+
+## 🏁 Checkpoint 3: Tools can be created and used
+
+You should now be able to perform the following actions:
+
+- Access the service at http://localhost:8080  
+- Log in and out using the buttons/links in the UI  
+- Submit a query using the chat dialogue. The agent should give a reasonable response  
+- Upload a file using the chat dialogue. Processing can take some time, expecially for large files, so try this out using a small .txt file  
+- Submit a query with an uploaded a file using the chat dialogue. The agent should be able to access information in the file  
+- Access the admin dashboard at http://localhost:8080/admin  
+- Select from several tools using the Assist UI  
+- Add files to a tool's knowledge base  
