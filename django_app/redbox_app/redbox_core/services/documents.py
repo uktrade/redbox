@@ -26,7 +26,6 @@ from redbox_app.redbox_core.models import (
 from redbox_app.redbox_core.services import chats as chat_service
 from redbox_app.redbox_core.services import message as message_service
 from redbox_app.redbox_core.types import APPROVED_FILE_EXTENSIONS
-from redbox_app.worker import ingest
 
 CHUNK_SIZE = 1024
 
@@ -113,7 +112,7 @@ def ingest_file(uploaded_file: UploadedFile, user: User, tool: Tool | None = Non
         logger.exception("Unexpected error processing %s.", uploaded_file, exc_info=e)
         raise
     else:
-        async_task(ingest, file.id, task_name=file.unique_name, group="ingest")
+        async_task("src.app.ingest", file.id, task_name=file.unique_name, group="ingest")
         return [], file
 
 
@@ -124,7 +123,7 @@ def reingest_file(file: File):
 
     logger.debug("Reingesting file '%s'", file)
     async_task(
-        ingest,
+        "src.app.ingest",
         file.id,
         task_name=file.unique_name,
         group="re-ingest",
