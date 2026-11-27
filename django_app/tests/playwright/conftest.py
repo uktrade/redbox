@@ -2,6 +2,9 @@ import os
 
 import boto3
 import pytest
+from channels.testing import ChannelsLiveServerTestCase
+from django.conf import settings
+from django.contrib.sessions.backends.db import SessionStore
 from django.contrib.staticfiles.testing import StaticLiveServerTestCase
 from moto import mock_aws
 
@@ -94,3 +97,25 @@ def live_server_url():
     server.setUpClass()
     yield server.live_server_url
     server.tearDownClass()
+
+
+class WebSocketLiveServerTestCase(ChannelsLiveServerTestCase):
+    serve_static = True
+
+
+@pytest.fixture
+def expire_sso_session(page):
+    """Expire the user's SSO session without expiring the Django session."""
+
+    def expire():
+        session_cookie = next(
+            cookie for cookie in page.context.cookies() if cookie["name"] == settings.SESSION_COOKIE_NAME
+        )
+        session = SessionStore(session_key=session_cookie["value"])
+
+        assert session.get("_auth_user_id"), "Expected an authenticated Django session"
+
+        session["_authbroker_token"] = {"access_token": "expired-test-token", "expires_at": 0}
+        session.save()
+
+    return expire
