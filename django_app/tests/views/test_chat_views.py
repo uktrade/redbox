@@ -2,6 +2,7 @@ import json
 import logging
 import uuid
 from http import HTTPStatus
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from bs4 import BeautifulSoup
@@ -33,6 +34,30 @@ def test_user_can_start_a_new_chat(alice: User, client: Client):
     # Then
     assert response.status_code == HTTPStatus.OK
     assert f"New chat - Chats - {product_name}" in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("requested_url", ["/chats/?q=hello", "/tools/example/chats/?q=hello"])
+@pytest.mark.parametrize("expired_token", [False, True])
+def test_chat_redirects_to_reauthentication_without_valid_sso(
+    alice: User,
+    client: Client,
+    requested_url: str,
+    expired_token: bool,
+):
+    client.force_login(alice)
+
+    if expired_token:
+        session = client.session
+        session["_authbroker_token"] = {"access_token": "expired_token", "expires_at": 0}
+        session.save()
+
+    response = client.get(requested_url)
+    assert response.status_code == HTTPStatus.FOUND
+
+    redirect_url = urlsplit(response.url)
+    assert redirect_url.path == reverse("reauthenticate")
+    assert parse_qs(redirect_url.query) == {"next": [requested_url]}
 
 
 @pytest.mark.django_db

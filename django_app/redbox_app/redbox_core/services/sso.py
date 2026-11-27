@@ -108,11 +108,11 @@ def get_usable_sso_token(session) -> str | None:  # noqa: PLR0911
     if not access_token:
         return None
 
-    # In local development, allow tokens without expiry
-    # In other environments, reject tokens without expiry
+    # Allow token without expiry in integration tests & local
+    # Reject token without expiry in other environments
     if type(expires_at) not in (int, float):
-        if settings.ENVIRONMENT.is_local:
-            logger.debug("SSO token has no expiry timestamp. Allowing this in local development.")
+        if settings.ENVIRONMENT.is_test:
+            logger.debug("Allowing SSO token without expiry in integration test or local environment.")
             return access_token
         return None
 

@@ -11,6 +11,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -28,7 +29,7 @@ from redbox.models.prompts import CHAT_MAP_QUESTION_PROMPT
 from redbox.models.settings import ChatLLMBackend as PydanticChatLLMBackend
 from redbox_app.redbox_core import consumers as consumers_module
 from redbox_app.redbox_core import error_messages
-from redbox_app.redbox_core.consumers import ChatConsumer, resolve_citable_file
+from redbox_app.redbox_core.consumers import ChatConsumer, SSOAuthenticationExpiredError, resolve_citable_file
 from redbox_app.redbox_core.models import ActivityEvent, Chat, ChatMessage, ChatMessageTokenUse, Citation, File
 from redbox_app.redbox_core.models import Chat as ChatModel
 from redbox_app.redbox_core.models import ChatMessage as ChatMessageModel
@@ -1161,6 +1162,45 @@ async def test_expired_sso_token_forces_logout():
     consumer.send_to_client.assert_awaited_once_with("auth_expired", error_messages.AUTH_EXPIRED)
     consumer.close.assert_awaited_once()
     ChatConsumer.redbox = None
+
+
+@pytest.mark.asyncio
+async def test_receive_rejects_expired_sso_():
+    consumer = ChatConsumer()
+    consumer.scope = {
+        "user": MagicMock(is_authenticated=True),
+        "session": {"_authbroker_token": {"access_token": "expired-token", "expires_at": 0}},
+    }
+    consumer.send_to_client = AsyncMock()
+    consumer.close = AsyncMock()
+
+    await consumer.receive(text_data='{"message": "hello"}')
+    await consumer.receive(text_data='{"message": "hello"}')
+
+    consumer.send_to_client.assert_awaited_once_with("auth_expired", error_messages.AUTH_EXPIRED)
+    assert consumer.close.await_count == 2
+    consumer.close.assert_awaited_with(code=settings.WEBSOCKET_AUTH_FAILED)
+
+
+@pytest.mark.asyncio
+async def test_requie_sso_token_detects_expiry_after_initial_validation():
+    consumer = ChatConsumer()
+    consumer.scope = {
+        "session": {
+            "_authbroker_token": {"access_token": "test-token", "expires_at": timezone.now().timestamp() + 3600}
+        }
+    }
+    consumer.send_to_client = AsyncMock()
+
+    assert await consumer._require_sso_token() == "test-token"  # noqa: SLF001
+
+    # Expire credentials
+    consumer.scope["session"]["_authbroker_token"]["expires_at"] = 0
+
+    with pytest.raises(SSOAuthenticationExpiredError):
+        await consumer._require_sso_token()  # noqa: SLF001
+
+    consumer.send_to_client.assert_awaited_once_with("auth_expired", error_messages.AUTH_EXPIRED)
 
 
 @pytest.mark.asyncio
