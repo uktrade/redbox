@@ -76,6 +76,5 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pytest.ini_options]
-DJANGO_SETTINGS_MODULE = "redbox_app.settings"
 testpaths = "tests"
 norecursedirs = "tests/test_ai.py"
