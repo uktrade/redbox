@@ -41,6 +41,11 @@ RUN poetry bundle venv ./venv
 # app
 FROM python:3.12-slim
 
+RUN apt-get update && apt-get install -y \
+    curl \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /usr/src/app
 
 COPY README.md .
